@@ -1,0 +1,9 @@
+[postgres]
+host = localhost
+user = postgres
+password = 123
+database = twitter
+port = 5432
+
+[bot]
+token = ahFHr8ogECnVhCJlBDnP3PLaDIm9YrD
