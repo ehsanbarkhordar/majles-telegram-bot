@@ -7,6 +7,7 @@ from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler)
 
 # Enable logging
+from constants.filter_regex import vocabulary_regex
 from constants.keyboards import Keyboard
 from setting import config, logger
 
@@ -14,7 +15,7 @@ GENDER, PHOTO, LOCATION, BIO = range(4)
 
 
 def start(update, context):
-    reply_keyboard = [[Keyboard.send_request_to_lawmaker]]
+    reply_keyboard = [[Keyboard.send_request]]
     update.message.reply_text(
         'با سلام به ربات مجلس من خوش آمدید.\n'
         'لطفا یکی از گزینه های زیر را انتخاب کنید:',
@@ -109,7 +110,7 @@ def main():
         entry_points=[CommandHandler('start', start)],
 
         states={
-            GENDER: [MessageHandler(Filters.regex('^(Boy|Girl|Other)$'), gender)],
+            GENDER: [MessageHandler(Filters.regex(Keyboard.send_request), gender)],
 
             PHOTO: [MessageHandler(Filters.photo, photo),
                     CommandHandler('skip', skip_photo)],

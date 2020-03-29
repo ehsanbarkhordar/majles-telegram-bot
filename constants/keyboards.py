@@ -1,2 +1,2 @@
 class Keyboard:
-    send_request_to_lawmaker = "ارسال درخواست به نماینده"
+    send_request = "ارسال درخواست به نماینده"
