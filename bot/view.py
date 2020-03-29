@@ -1,25 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Simple inline keyboard bot with multiple CallbackQueryHandlers.
-This Bot uses the Updater class to handle the bot.
-First, a few callback functions are defined as callback query handler. Then, those functions are
-passed to the Dispatcher and registered at their respective places.
-Then, the bot is started and runs until we press Ctrl-C on the command line.
-Usage:
-Example of a bot that uses inline keyboard that has multiple CallbackQueryHandlers arranged in a
-ConversationHandler.
-Send /start to initiate the conversation.
-Press Ctrl-C on the command line to stop the bot.
-"""
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, CallbackContext, \
+    MessageHandler, Filters
 
 # Stages
-from setting import logger
+from constants.keyboards import Keyboard
+from setting import logger, config
 
 FIRST, SECOND = range(2)
 # Callback data
-ONE, TWO, THREE, FOUR = range(4)
+SEND_REQUEST, TEXT, MEDIA, TWO, THREE, FOUR = range(6)
 
 
 def start(update, context):
@@ -32,13 +24,13 @@ def start(update, context):
     # The keyboard is a list of button rows, where each row is in turn
     # a list (hence `[[...]]`).
     keyboard = [
-        [InlineKeyboardButton("1", callback_data=str(ONE)),
-         InlineKeyboardButton("2", callback_data=str(TWO))]
+        [InlineKeyboardButton(Keyboard.send_request, callback_data=str(SEND_REQUEST))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     # Send message with text and appended InlineKeyboard
     update.message.reply_text(
-        "Start handler, Choose a route",
+        'با سلام به ربات مجلس من خوش آمدید.\n'
+        'لطفا یکی از گزینه های زیر را انتخاب کنید:',
         reply_markup=reply_markup
     )
     # Tell ConversationHandler that we're in state `FIRST` now
@@ -53,7 +45,7 @@ def start_over(update, context):
     # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
     query.answer()
     keyboard = [
-        [InlineKeyboardButton("1", callback_data=str(ONE)),
+        [InlineKeyboardButton("1", callback_data=str(SEND_REQUEST)),
          InlineKeyboardButton("2", callback_data=str(TWO))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -67,8 +59,9 @@ def start_over(update, context):
     return FIRST
 
 
-def one(update, context):
+def one(update: Update, context: CallbackContext):
     """Show new choice of buttons"""
+    chat_id = update.effective_chat.id
     query = update.callback_query
     query.answer()
     keyboard = [
@@ -76,11 +69,29 @@ def one(update, context):
          InlineKeyboardButton("4", callback_data=str(FOUR))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    query.edit_message_text(
-        text="First CallbackQueryHandler, Choose a route",
-        reply_markup=reply_markup
-    )
-    return FIRST
+    # query.edit_message_text(
+    #     text="First CallbackQueryHandler, Choose a route",
+    #     reply_markup=reply_markup
+    # )
+    context.bot.send_message(chat_id, 'لطفا متن درخواست خود را بنویسید:')
+    return TEXT
+
+
+def get_media(update: Update, context: CallbackContext):
+    context.bot_data['request_text'] = update.effective_message.text
+    reply_keyboard = [[Keyboard.no_media]]
+    update.message.replay_text("اگر فیلم یا عکس مرتبط با این موضوع دارید بفرستید:\n"
+                               "در غیر این صورت دکمه زیر را بزنید.",
+                               reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
+    return MEDIA
+
+
+def save_request(update: Update, context: CallbackContext):
+    msg=update.effective_message
+    # if isinstance(msg,TextMessage)
+    context.bot_data['request_text'] = update.effective_message.text
+    update.message.replay_text("خیلی ممنون بابت ارسال درخواست خود :)")
+    return ConversationHandler.END
 
 
 def two(update, context):
@@ -88,7 +99,7 @@ def two(update, context):
     query = update.callback_query
     query.answer()
     keyboard = [
-        [InlineKeyboardButton("1", callback_data=str(ONE)),
+        [InlineKeyboardButton("1", callback_data=str(SEND_REQUEST)),
          InlineKeyboardButton("3", callback_data=str(THREE))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -104,7 +115,7 @@ def three(update, context):
     query = update.callback_query
     query.answer()
     keyboard = [
-        [InlineKeyboardButton("Yes, let's do it again!", callback_data=str(ONE)),
+        [InlineKeyboardButton("Yes, let's do it again!", callback_data=str(SEND_REQUEST)),
          InlineKeyboardButton("Nah, I've had enough ...", callback_data=str(TWO))]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -164,12 +175,16 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            FIRST: [CallbackQueryHandler(one, pattern='^' + str(ONE) + '$'),
+            FIRST: [CallbackQueryHandler(one, pattern='^' + str(SEND_REQUEST) + '$'),
                     CallbackQueryHandler(two, pattern='^' + str(TWO) + '$'),
                     CallbackQueryHandler(three, pattern='^' + str(THREE) + '$'),
                     CallbackQueryHandler(four, pattern='^' + str(FOUR) + '$')],
-            SECOND: [CallbackQueryHandler(start_over, pattern='^' + str(ONE) + '$'),
-                     CallbackQueryHandler(end, pattern='^' + str(TWO) + '$')]
+            SECOND: [CallbackQueryHandler(start_over, pattern='^' + str(SEND_REQUEST) + '$'),
+                     CallbackQueryHandler(end, pattern='^' + str(TWO) + '$')],
+            TEXT: [MessageHandler(Filters.text, get_media)],
+            MEDIA: [MessageHandler(
+                [Filters.document, Filters.photo, Filters.video, Filters.regex("^" + Keyboard.no_media + "$")],
+                save_request)]
         },
         fallbacks=[CommandHandler('start', start)]
     )
