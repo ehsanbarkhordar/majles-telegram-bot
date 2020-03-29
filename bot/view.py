@@ -7,18 +7,17 @@ from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler)
 
 # Enable logging
+from constants.keyboards import Keyboard
 from setting import config, logger
 
 GENDER, PHOTO, LOCATION, BIO = range(4)
 
 
 def start(update, context):
-    reply_keyboard = [['Boy', 'Girl', 'Other']]
-
+    reply_keyboard = [[Keyboard.send_request_to_lawmaker]]
     update.message.reply_text(
-        'Hi! My name is Professor Bot. I will hold a conversation with you. '
-        'Send /cancel to stop talking to me.\n\n'
-        'Are you a boy or a girl?',
+        'با سلام به ربات مجلس من خوش آمدید.\n'
+        'لطفا یکی از گزینه های زیر را انتخاب کنید:',
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
 
     return GENDER
