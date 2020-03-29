@@ -1,2 +1,4 @@
+from bot.view import main
+
 if __name__ == '__main__':
-    pass
+    main()
