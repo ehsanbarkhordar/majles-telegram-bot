@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import datetime
+from random import randint
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup
+import telegram
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardMarkup, ReplyMarkup, \
+    ReplyKeyboardRemove
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, CallbackContext, \
     MessageHandler, Filters
 
@@ -82,39 +86,60 @@ def one(update: Update, context: CallbackContext):
     return TEXT
 
 
+def new_request(update: Update, context: CallbackContext):
+    """Show new choice of buttons"""
+    update.message.reply_text('لطفا متن درخواست خود را بنویسید:', reply_markup=ReplyKeyboardRemove())
+    return TEXT
+
+
 def get_media(update: Update, context: CallbackContext):
     context.bot_data['request_content'] = update.effective_message.text
     reply_keyboard = [[Keyboard.no_media]]
     update.message.reply_text("اگر فیلم یا عکس مرتبط با این موضوع دارید بفرستید:\n"
-                               "در غیر این صورت دکمه زیر را بزنید.",
-                               reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
+                              "در غیر این صورت دکمه زیر را بزنید.",
+                              reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
     return MEDIA
 
 
 def no_media(update: Update, context: CallbackContext):
     request_content = context.bot_data['request_content']
-    update.message.reply_text("خیلی ممنون بابت ارسال درخواست خود :)")
     chat_id = update.effective_chat.id
     first_name = update.effective_chat.first_name
     username = update.effective_chat.username
     user = get_or_create_user(chat_id, first_name, username)
     create_request(user, request_content, None)
+    update.message.reply_text("خیلی ممنون بابت ارسال درخواست خود :)", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 
 def save_doc_and_finish(update: Update, context: CallbackContext):
-    msg = update.effective_message
-    # if isinstance(msg,TextMessage)
-    context.bot_data['request_content'] = update.effective_message.text
-    update.message.replay_text("خیلی ممنون بابت ارسال درخواست خود :)")
+    chat_id = update.effective_chat.id
+    first_name = update.effective_chat.first_name
+    username = update.effective_chat.username
+    document = update.message.document.get_file()
+    file_name = update.message.document.file_name
+    unique_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S%f-") + file_name
+    file_name = 'media/{unique_name}'.format(unique_name=unique_name)
+    document.download(file_name)
+    user = get_or_create_user(chat_id, first_name, username)
+    request_content = context.bot_data['request_content']
+    create_request(user, request_content, file_name)
+    update.message.reply_text("خیلی ممنون بابت ارسال درخواست خود :)", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 
 def save_photo_and_finish(update: Update, context: CallbackContext):
-    msg = update.effective_message
-    # if isinstance(msg,TextMessage)
-    context.bot_data['request_text'] = update.effective_message.text
-    update.message.replay_text("خیلی ممنون بابت ارسال درخواست خود :)")
+    chat_id = update.effective_chat.id
+    first_name = update.effective_chat.first_name
+    username = update.effective_chat.username
+    photo_file = update.message.photo[-1].get_file()
+    unique_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S%f") + randint(100, 999).__str__()
+    file_name = 'media/{unique_name}.jpg'.format(unique_name=unique_name)
+    photo_file.download(file_name)
+    user = get_or_create_user(chat_id, first_name, username)
+    request_content = context.bot_data['request_content']
+    create_request(user, request_content, file_name)
+    update.message.reply_text("خیلی ممنون بابت ارسال درخواست خود :)", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 
@@ -185,7 +210,7 @@ def error(update, context):
 
 def main():
     # Create the Updater and pass it your bot's token.
-    updater = Updater(config['bot']['token'], use_context=True)
+    updater = Updater(config['token']['my_majles_bot'], use_context=True)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -212,9 +237,21 @@ def main():
         },
         fallbacks=[CommandHandler('start', start)]
     )
+    dp.add_handler(conv_handler)
 
     # Add ConversationHandler to dispatcher that will be used for handling
     # updates
+
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('new_request', new_request)],
+        states={
+            TEXT: [MessageHandler(Filters.text, get_media)],
+            MEDIA: [MessageHandler(Filters.regex("^" + Keyboard.no_media + "$"), no_media),
+                    MessageHandler(Filters.document, save_doc_and_finish),
+                    MessageHandler(Filters.photo, save_photo_and_finish)]
+        },
+        fallbacks=[CommandHandler('start', start)]
+    )
     dp.add_handler(conv_handler)
 
     # log all errors
