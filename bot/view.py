@@ -7,6 +7,7 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, Conversa
 
 # Stages
 from constants.keyboards import Keyboard
+from db.models import get_or_create_user
 from setting import logger, config
 
 FIRST, SECOND = range(2)
@@ -17,8 +18,12 @@ SEND_REQUEST, TEXT, MEDIA, TWO, THREE, FOUR = range(6)
 def start(update, context):
     """Send message on `/start`."""
     # Get user that sent /start and log his name
-    user = update.message.from_user
-    logger.info("User %s started the conversation.", user.first_name)
+    chat_id = update.effective_chat.id
+    first_name = update.effective_chat.first_name
+    username = update.effective_chat.username
+    get_or_create_user(chat_id, first_name, username)
+
+    logger.info("User %s started the conversation.", first_name)
     # Build InlineKeyboard where each button has a displayed text
     # and a string as callback_data
     # The keyboard is a list of button rows, where each row is in turn

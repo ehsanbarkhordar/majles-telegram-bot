@@ -41,3 +41,24 @@ class Request(BaseModel):
     status = CharField(choices=STATUS_CHOICES)
     created_date = DateTimeField(default=datetime.datetime.now)
     is_published = BooleanField(default=True)
+
+
+def create_tables():
+    with database:
+        database.create_tables([User, Request])
+
+
+def get_or_create_user(chat_id, name, username):
+    database.connect()
+    with database.atomic():
+        # Attempt to create the user. If the username is taken, due to the
+        # unique constraint, the database will raise an IntegrityError.
+        user, created = User.get_or_create(
+            chat_id=chat_id,
+            name=name,
+            username=username)
+
+    # mark the user as being 'authenticated' by setting the session vars
+    database.close()
+    return user
+
