@@ -86,8 +86,22 @@ def get_media(update: Update, context: CallbackContext):
     return MEDIA
 
 
-def save_request(update: Update, context: CallbackContext):
-    msg=update.effective_message
+def no_media(update: Update, context: CallbackContext):
+    request_text = context.bot_data['request_text']
+    update.message.replay_text("خیلی ممنون بابت ارسال درخواست خود :)")
+    return ConversationHandler.END
+
+
+def save_doc_and_finish(update: Update, context: CallbackContext):
+    msg = update.effective_message
+    # if isinstance(msg,TextMessage)
+    context.bot_data['request_text'] = update.effective_message.text
+    update.message.replay_text("خیلی ممنون بابت ارسال درخواست خود :)")
+    return ConversationHandler.END
+
+
+def save_photo_and_finish(update: Update, context: CallbackContext):
+    msg = update.effective_message
     # if isinstance(msg,TextMessage)
     context.bot_data['request_text'] = update.effective_message.text
     update.message.replay_text("خیلی ممنون بابت ارسال درخواست خود :)")
@@ -182,9 +196,9 @@ def main():
             SECOND: [CallbackQueryHandler(start_over, pattern='^' + str(SEND_REQUEST) + '$'),
                      CallbackQueryHandler(end, pattern='^' + str(TWO) + '$')],
             TEXT: [MessageHandler(Filters.text, get_media)],
-            MEDIA: [MessageHandler(
-                [Filters.document, Filters.photo, Filters.video, Filters.regex("^" + Keyboard.no_media + "$")],
-                save_request)]
+            MEDIA: [MessageHandler(Filters.regex("^" + Keyboard.no_media + "$"), no_media),
+                    MessageHandler(Filters.document, save_doc_and_finish),
+                    MessageHandler(Filters.photo, save_photo_and_finish)]
         },
         fallbacks=[CommandHandler('start', start)]
     )
