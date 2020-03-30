@@ -7,7 +7,7 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, Conversa
 
 # Stages
 from constants.keyboards import Keyboard
-from db.models import get_or_create_user
+from db.models import get_or_create_user, create_request
 from setting import logger, config
 
 FIRST, SECOND = range(2)
@@ -83,24 +83,29 @@ def one(update: Update, context: CallbackContext):
 
 
 def get_media(update: Update, context: CallbackContext):
-    context.bot_data['request_text'] = update.effective_message.text
+    context.bot_data['request_content'] = update.effective_message.text
     reply_keyboard = [[Keyboard.no_media]]
-    update.message.replay_text("اگر فیلم یا عکس مرتبط با این موضوع دارید بفرستید:\n"
+    update.message.reply_text("اگر فیلم یا عکس مرتبط با این موضوع دارید بفرستید:\n"
                                "در غیر این صورت دکمه زیر را بزنید.",
                                reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
     return MEDIA
 
 
 def no_media(update: Update, context: CallbackContext):
-    request_text = context.bot_data['request_text']
-    update.message.replay_text("خیلی ممنون بابت ارسال درخواست خود :)")
+    request_content = context.bot_data['request_content']
+    update.message.reply_text("خیلی ممنون بابت ارسال درخواست خود :)")
+    chat_id = update.effective_chat.id
+    first_name = update.effective_chat.first_name
+    username = update.effective_chat.username
+    user = get_or_create_user(chat_id, first_name, username)
+    create_request(user, request_content, None)
     return ConversationHandler.END
 
 
 def save_doc_and_finish(update: Update, context: CallbackContext):
     msg = update.effective_message
     # if isinstance(msg,TextMessage)
-    context.bot_data['request_text'] = update.effective_message.text
+    context.bot_data['request_content'] = update.effective_message.text
     update.message.replay_text("خیلی ممنون بابت ارسال درخواست خود :)")
     return ConversationHandler.END
 

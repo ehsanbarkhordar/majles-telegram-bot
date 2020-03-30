@@ -37,10 +37,9 @@ STATUS_CHOICES = (
 class Request(BaseModel):
     user = ForeignKeyField(User, backref='requests')
     content = TextField()
-    document = TextField()
-    status = CharField(choices=STATUS_CHOICES)
+    document = TextField(null=True)
+    status = CharField(choices=STATUS_CHOICES, default='UNREAD')
     created_date = DateTimeField(default=datetime.datetime.now)
-    is_published = BooleanField(default=True)
 
 
 def create_tables():
@@ -48,7 +47,9 @@ def create_tables():
         database.create_tables([User, Request])
 
 
-def get_or_create_user(chat_id, name, username):
+def get_or_create_user(chat_id,
+                       name,
+                       username):
     database.connect()
     with database.atomic():
         # Attempt to create the user. If the username is taken, due to the
@@ -62,3 +63,19 @@ def get_or_create_user(chat_id, name, username):
     database.close()
     return user
 
+
+def create_request(user,
+                   content,
+                   document):
+    database.connect()
+    with database.atomic():
+        # Attempt to create the user. If the username is taken, due to the
+        # unique constraint, the database will raise an IntegrityError.
+        request = Request.create(
+            user=user,
+            content=content,
+            document=document)
+
+    # mark the user as being 'authenticated' by setting the session vars
+    database.close()
+    return request
